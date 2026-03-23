@@ -1,4 +1,3 @@
-#import "birthday_images.typ": birthday_image_filepaths
 
 #let calendar(year: "", body) = {
   set document(title: str(year) + " calendar")
@@ -27,7 +26,6 @@
     })
     // filter events to only include those in the specified year
     .filter(event => event.date.year() == year)
-  // repr(public_holidays)
 
   let raw_birthdays = csv(
     "birthdays.csv",
@@ -78,6 +76,52 @@
 
   for month in range(1, 13) [
 
+    #let birthdays_this_month = birthdays.filter(event => (
+      event.date.month() == month
+    ))
+
+    #if birthdays_this_month.len() > 0 {
+      let bounds = 2in
+      let images_with_paths = birthdays_this_month.filter(event => (
+        event.image != ""
+      ))
+      let count = images_with_paths.len()
+
+      // divide page into a grid based on count
+      let cols = calc.max(1, calc.ceil(calc.sqrt(count)))
+      let rows = calc.max(1, calc.ceil(count / cols))
+      let cell_width = 500 / cols // in pts
+      let cell_height = 400 / rows
+      let header_offset = 0.5in
+
+      for (i, event) in images_with_paths.enumerate() [
+        #let col = calc.rem(i, cols)
+        #let row = i / cols
+        #let seed = event.name.len() + i
+        // add small random offset within cell so it doesn't look too rigid
+        #let jitter_x = (
+          calc.rem(seed * 17, calc.max(1, int(cell_width) - 144)) * 1pt
+        )
+        #let jitter_y = (
+          calc.rem(seed * 13, calc.max(1, int(cell_height) - 144)) * 1pt
+        )
+        #place(
+          top + left,
+          dx: col * cell_width * 1pt + jitter_x,
+          dy: header_offset + row * cell_height * 1pt + jitter_y,
+          box(
+            width: bounds,
+            height: bounds,
+            clip: true,
+            radius: 50%,
+            image(event.image, width: bounds, height: bounds, fit: "cover"),
+          ),
+        )
+      ]
+    }
+
+
+
     // Header with public holidays and birthdays for the month
     #header(
       public_holidays.filter(event => event.date.month() == month),
@@ -90,104 +134,6 @@
       // green,
     )
 
-    #let birthdays_this_month = birthdays.filter(event => (
-      event.date.month() == month
-    ))
-
-    // #if birthdays_this_month.len() > 0 {
-    //   let bounds = 3in
-    //   align(center + horizon)[
-    //     #for event in birthdays_this_month [
-    //       #let image_filepath = birthday_image_filepaths.at(
-    //         event.name.split(" (").first(),
-    //         default: none,
-    //       )
-    //       #if image_filepath != none {
-    //         box(
-    //           width: bounds,
-    //           height: bounds,
-    //           clip: true,
-    //           radius: 50%,
-    //           image(
-    //             image_filepath,
-    //             width: bounds,
-    //             height: bounds,
-    //             fit: "cover",
-    //           ),
-    //         )
-    //       }
-    //     ]
-    //   ]
-    // }
-
-    #if birthdays_this_month.len() > 0 {
-      for (i, event) in birthdays_this_month.enumerate() [
-        #let image_filepath = if event.image != "" { event.image } else { none }
-        #if image_filepath != none {
-          let bounds = 2in
-          let seed = event.name.len() * (i + 1)
-
-          // let max_x = page.width - page.margin-left - page.margin-right - 1.5in
-          // let max_y = page.height - page.margin-top - page.margin-bottom - 1.5in
-
-          let x = calc.rem(seed * 73, 700) * 1pt
-          let y = calc.rem(seed * 37, 300) * 1pt
-          place(
-            top + left,
-            dx: x,
-            dy: y,
-            box(
-              width: bounds,
-              height: bounds,
-              clip: true,
-              radius: 50%,
-              image(
-                image_filepath,
-                width: bounds,
-                height: bounds,
-                fit: "cover",
-              ),
-            ),
-          )
-        }
-      ]
-    }
-
-    // #if birthdays_this_month.len() > 0 {
-    //   let images_to_show = birthdays_this_month.filter(event => (
-    //     birthday_image_filepaths.at(
-    //       event.name.split(" (").first(),
-    //       default: none,
-    //     )
-    //       != none
-    //   ))
-    //   if images_to_show.len() > 0 [
-    //     #align(center + horizon)[
-    //       #grid(
-    //         columns: images_to_show.len(),
-    //         column-gutter: 1fr,
-    //         ..images_to_show.map(event => {
-    //           let image_filepath = birthday_image_filepaths.at(
-    //             event.name.split(" (").first(),
-    //             default: none,
-    //           )
-    //           box(
-    //             width: 1.5in,
-    //             height: 1.5in,
-    //             clip: true,
-    //             radius: 50%,
-    //             image(
-    //               image_filepath,
-    //               width: 1.5in,
-    //               height: 1.5in,
-    //               fit: "cover",
-    //             ),
-    //           )
-    //         })
-    //       )
-    //     ]
-    //   ]
-    // }
 
     #pagebreak()
     #let month_date = datetime(
@@ -242,9 +188,13 @@
           ))
           let is_holiday = public_holiday_events.len() > 0
 
-          let birthday_events = birthdays.filter(event => (
-            event.date.month() == day.month() and event.date.day() == day.day()
-          ))
+          let birthday_events = birthdays
+            .filter(event => (
+              event.date.month() == day.month()
+                and event.date.day() == day.day()
+            ))
+            .map(event => (name: emph(event.name)))
+
           let is_birthday = birthday_events.len() > 0
 
           let fill = none
@@ -259,13 +209,14 @@
           let day_events = birthday_events + public_holiday_events
 
           table.cell(
-            // fill: if is_holiday { aqua.lighten(60%) } else { none },
             fill: fill,
+            // stroke: if (is_birthday or is_holiday) {
+            //   (dash: "dashed")
+            // } else { (thickness: 1.5pt) },
             [
               #day.display("[day padding:none]")
               #if day_events.len() > 0 [
                 #linebreak()
-                // #text(size: 7pt)[#day_events.first().name]
                 #text(size: 7pt)[
                   #day_events.map(event => event.name).join("\n")
                 ]
