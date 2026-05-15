@@ -76,9 +76,13 @@
 
   for month in range(1, 13) [
 
-    #let birthdays_this_month = birthdays.filter(event => (
-      event.date.month() == month
-    ))
+    #let birthdays_this_month = (
+      birthdays
+        .filter(event => (
+          event.date.month() == month
+        ))
+        .sorted(key: event => event.date.day())
+    )
 
     #if birthdays_this_month.len() > 0 {
       let bounds = 2in
@@ -129,7 +133,7 @@
       // aqua,
     )
     #header(
-      birthdays.filter(event => event.date.month() == month),
+      birthdays_this_month,
       "Birthdays:",
       // green,
     )
@@ -173,13 +177,13 @@
         rows: (0.4fr,) + row_count * (1fr,),
         inset: 0.8em,
         table.header(
-          [Sunday],
-          [Monday],
-          [Tuesday],
-          [Wednesday],
-          [Thursday],
-          [Friday],
-          [Saturday],
+          table.cell(align: center)[Sunday],
+          table.cell(align: center)[Monday],
+          table.cell(align: center)[Tuesday],
+          table.cell(align: center)[Wednesday],
+          table.cell(align: center)[Thursday],
+          table.cell(align: center)[Friday],
+          table.cell(align: center)[Saturday],
         ),
         ..range(1, first_sunday).map(empty_day => []),
         ..monthly_days.map(day => {

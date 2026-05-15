@@ -6,6 +6,7 @@
   margin: 8%,
 )
 #set text(size: 14pt, font: "Helvetica")
+// #set text(size: 14pt, font: "Noto Sans Javanese")
 
 #show: calendar.with(
   year: datetime.today().year(),
