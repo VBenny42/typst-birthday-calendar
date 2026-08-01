@@ -13,6 +13,9 @@
 #set text(size: 14pt, font: "Helvetica")
 // #set text(size: 14pt, font: "Noto Sans Javanese")
 
+#show heading.where(level: 1): set text(size: 27pt)
+
 #show: calendar.with(
   year: datetime.today().year(),
+  normalise_to_five_weeks: true,
 )

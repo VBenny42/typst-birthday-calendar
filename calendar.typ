@@ -1,5 +1,4 @@
-
-#let calendar(year: "", body) = {
+#let calendar(year: "", normalise_to_five_weeks: false, body) = {
   set document(title: str(year) + " calendar")
 
   // Got from https://www.officeholidays.com/ics-all/trinidad-and-tobago
@@ -38,11 +37,21 @@
       month: int(parts.at(1)),
       year: if parts.len() > 2 { int(parts.at(2)) } else { 0 },
     )
+
+    let placement = if entry.at("Placement") != "" {
+      let parts = entry.at("Placement").trim("(").trim(")").split(".")
+      let x = int(parts.at(0))
+      let y = int(parts.at(1))
+      (x: x, y: y)
+    } else { (x: 0, y: 0) }
+
     (
       date: date,
       name: entry.at("Person")
         + if parts.len() > 2 { " (" + str(year - date.year()) + ")" },
       image: entry.at("Image"),
+      placement: placement,
+      size: if entry.at("Size") != "" { float(entry.at("Size")) } else { 1.0 },
     )
   })
 
@@ -55,9 +64,8 @@
     str(n) + suffix
   }
 
-  let header = (arr, title /* color */) => {
+  let header = (arr, title) => {
     if arr.len() > 0 [
-      // #set text(color)
       #linebreak()
       #text(size: 12pt)[#title]
       #text(size: 10pt)[
@@ -71,6 +79,9 @@
       ]
     ]
   }
+
+  // Just anything but content
+  let blank_cell = 1
 
   pagebreak(weak: true)
 
@@ -89,30 +100,26 @@
       let images_with_paths = birthdays_this_month.filter(event => (
         event.image != ""
       ))
-      let count = images_with_paths.len()
 
-      // divide page into a grid based on count
-      let cols = calc.max(1, calc.ceil(calc.sqrt(count)))
-      let rows = calc.max(1, calc.ceil(count / cols))
-      let cell_width = 500 / cols // in pts
-      let cell_height = 400 / rows
-      let header_offset = 0.5in
+      let header_offset = 0in
+      if (
+        public_holidays.filter(event => event.date.month() == month).len() > 0
+      ) {
+        header_offset += 0.0in
+      }
+      if (birthdays_this_month.len() > 0) {
+        header_offset += 0.0in
+      }
 
       for (i, event) in images_with_paths.enumerate() [
-        #let col = calc.rem(i, cols)
-        #let row = i / cols
-        #let seed = event.name.len() + i
-        // add small random offset within cell so it doesn't look too rigid
-        #let jitter_x = (
-          calc.rem(seed * 17, calc.max(1, int(cell_width) - 144)) * 1pt
-        )
-        #let jitter_y = (
-          calc.rem(seed * 13, calc.max(1, int(cell_height) - 144)) * 1pt
-        )
+        #let x = event.placement.x
+        #let y = event.placement.y
+        #let bounds = event.size * bounds
+
         #place(
-          top + left,
-          dx: col * cell_width * 1pt + jitter_x,
-          dy: header_offset + row * cell_height * 1pt + jitter_y,
+          horizon + center,
+          dx: x * 0.1in,
+          dy: header_offset + y * 0.1in,
           box(
             width: bounds,
             height: bounds,
@@ -124,18 +131,14 @@
       ]
     }
 
-
-
     // Header with public holidays and birthdays for the month
     #header(
       public_holidays.filter(event => event.date.month() == month),
       "Public holidays:",
-      // aqua,
     )
     #header(
       birthdays_this_month,
       "Birthdays:",
-      // green,
     )
 
 
@@ -158,23 +161,56 @@
 
     #align(left)[
       #heading(level: 1)[
-        #text(size: 27pt)[#month_date.display("[month repr:long]") #year
-        ]
+        #month_date.display("[month repr:long]") #year
       ]
     ]
 
-    #let first_sunday = {
+    #let first_day_as_week_int = {
       int(monthly_days.first().display("[weekday repr:sunday]"))
     }
 
-    #let row_count = calc.floor((first_sunday + monthly_days.len()) / 7)
+    #let saturdays = ()
+    #for (index, day) in monthly_days.enumerate() {
+      if int(day.display("[weekday repr:sunday]")) == 7 {
+        saturdays.push(index)
+      }
+    }
+
+
+    #let total_rows = saturdays.len()
+    #let start_of_last_week = saturdays.last() + 1
+    #if monthly_days.len() - start_of_last_week > 0 {
+      total_rows += 1
+
+      if total_rows > 5 and normalise_to_five_weeks {
+        total_rows -= 1
+
+        let last_week = ()
+
+        while monthly_days.last().day() != start_of_last_week {
+          last_week.push(monthly_days.pop())
+        }
+
+        monthly_days = (
+          last_week.rev()
+            // Pad with blanks
+            + (
+              (first_day_as_week_int - (last_week.len() + 1)) * (blank_cell,)
+            )
+            + monthly_days
+        )
+      } else {
+        monthly_days = first_day_as_week_int * (blank_cell,) + monthly_days
+      }
+    }
+
 
     #show table.cell.where(y: 0): strong
     #pad(
       y: 5%,
       table(
         columns: (1fr,) * 7,
-        rows: (0.4fr,) + row_count * (1fr,),
+        rows: (0.4fr,) + total_rows * (1fr,),
         inset: 0.8em,
         table.header(
           table.cell(align: center)[Sunday],
@@ -185,8 +221,11 @@
           table.cell(align: center)[Friday],
           table.cell(align: center)[Saturday],
         ),
-        ..range(1, first_sunday).map(empty_day => []),
         ..monthly_days.map(day => {
+          if type(day) == type(blank_cell) {
+            return
+          }
+
           let public_holiday_events = public_holidays.filter(event => (
             event.date.month() == day.month() and event.date.day() == day.day()
           ))
@@ -214,14 +253,11 @@
 
           table.cell(
             fill: fill,
-            // stroke: if (is_birthday or is_holiday) {
-            //   (dash: "dashed")
-            // } else { (thickness: 1.5pt) },
             [
               #day.display("[day padding:none]")
               #if day_events.len() > 0 [
                 #linebreak()
-                #text(size: 7pt)[
+                #text(size: 9pt)[
                   #day_events.map(event => event.name).join("\n")
                 ]
               ]
@@ -231,8 +267,13 @@
         stroke: (x, y) => {
           if y == 0 { return none }
           let cell_index = (y - 1) * 7 + x
-          let day_index = cell_index - (first_sunday - 1)
-          if day_index < 0 or day_index >= monthly_days.len() { return none }
+          let day_index = cell_index - (first_day_as_week_int - 1)
+          if (
+            type(monthly_days.at(cell_index, default: blank_cell))
+              == type(blank_cell)
+          ) {
+            return none
+          }
           (thickness: 1.5pt)
         },
       ),
