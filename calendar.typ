@@ -204,14 +204,16 @@
       }
     }
 
+    #let cell_inset = 0.8em
+    #let event_inset = 0.2em
 
     #show table.cell.where(y: 0): strong
     #pad(
-      y: 5%,
+      y: 6%,
       table(
         columns: (1fr,) * 7,
         rows: (0.4fr,) + total_rows * (1fr,),
-        inset: 0.8em,
+        inset: cell_inset,
         table.header(
           table.cell(align: center)[Sunday],
           table.cell(align: center)[Monday],
@@ -251,23 +253,40 @@
 
           let day_events = birthday_events + public_holiday_events
 
+          let inset = if day_events.len() > 0 {
+            event_inset
+          } else { cell_inset }
+
           table.cell(
             fill: fill,
+            inset: inset,
             [
-              #day.display("[day padding:none]")
-              #if day_events.len() > 0 [
-                #linebreak()
-                #text(size: 9pt)[
-                  #day_events.map(event => event.name).join("\n")
+              #if day_events.len() > 0 {
+                box(
+                  width: 100%,
+                  height: 100%,
+                  inset: cell_inset - event_inset,
+                  stroke: (
+                    paint: fill.darken(35%),
+                    thickness: 1pt,
+                    dash: "dotted",
+                  ),
+                )[
+                  #day.display("[day padding:none]")
+                  #linebreak()
+                  #text(size: 9pt)[
+                    #day_events.map(event => event.name).join("\n")
+                  ]
                 ]
-              ]
+              } else {
+                day.display("[day padding:none]")
+              }
             ],
           )
         }),
         stroke: (x, y) => {
           if y == 0 { return none }
           let cell_index = (y - 1) * 7 + x
-          let day_index = cell_index - (first_day_as_week_int - 1)
           if (
             type(monthly_days.at(cell_index, default: blank_cell))
               == type(blank_cell)
