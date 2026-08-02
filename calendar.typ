@@ -151,13 +151,13 @@
 
     #let monthly_days = ()
 
-    #for day in range(0, 31) [
-      #let month_accumulator = (month_date + duration(days: day))
-      #if month_accumulator.month() != month {
+    #for day in range(0, 31) {
+      let month_accumulator = (month_date + duration(days: day))
+      if month_accumulator.month() != month {
         break
       }
-      #monthly_days.push(month_accumulator)
-    ]
+      monthly_days.push(month_accumulator)
+    }
 
     #align(left)[
       #heading(level: 1)[
@@ -165,9 +165,10 @@
       ]
     ]
 
-    #let first_day_as_week_int = {
-      int(monthly_days.first().display("[weekday repr:sunday]"))
-    }
+    #let first_day_as_week_int = int(
+      monthly_days.first().display("[weekday repr:sunday]"),
+    )
+
 
     #let saturdays = ()
     #for (index, day) in monthly_days.enumerate() {
@@ -208,6 +209,7 @@
     #let event_inset = 0.2em
 
     #show table.cell.where(y: 0): strong
+    #show table.cell.where(y: 0): set align(center)
     #pad(
       y: 6%,
       table(
@@ -215,13 +217,13 @@
         rows: (0.4fr,) + total_rows * (1fr,),
         inset: cell_inset,
         table.header(
-          table.cell(align: center)[Sunday],
-          table.cell(align: center)[Monday],
-          table.cell(align: center)[Tuesday],
-          table.cell(align: center)[Wednesday],
-          table.cell(align: center)[Thursday],
-          table.cell(align: center)[Friday],
-          table.cell(align: center)[Saturday],
+          [Sunday],
+          [Monday],
+          [Tuesday],
+          [Wednesday],
+          [Thursday],
+          [Friday],
+          [Saturday],
         ),
         ..monthly_days.map(day => {
           if type(day) == type(blank_cell) {
