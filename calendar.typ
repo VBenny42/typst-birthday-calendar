@@ -47,8 +47,8 @@
 
     (
       date: date,
-      name: entry.at("Person")
-        + if parts.len() > 2 { " (" + str(year - date.year()) + ")" },
+      name: entry.at("Person"),
+      // + if parts.len() > 2 { " (" + str(year - date.year()) + ")" },
       image: entry.at("Image"),
       placement: placement,
       size: if entry.at("Size") != "" { float(entry.at("Size")) } else { 1.0 },
@@ -116,6 +116,12 @@
         #let y = event.placement.y
         #let bounds = event.size * bounds
 
+        #let radius = if event.size > 2.0 {
+          25%
+        } else {
+          50%
+        }
+
         #place(
           horizon + center,
           dx: x * 0.1in,
@@ -124,7 +130,7 @@
             width: bounds,
             height: bounds,
             clip: true,
-            radius: 50%,
+            radius: radius,
             image(event.image, width: bounds, height: bounds, fit: "cover"),
           ),
         )
