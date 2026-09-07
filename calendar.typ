@@ -116,10 +116,11 @@
         #let y = event.placement.y
         #let bounds = event.size * bounds
 
-        #let radius = if event.size > 2.0 {
-          25%
-        } else {
-          50%
+        #let radius = 50%
+
+        #if event.size > 1.0 {
+          let difference = event.size - 1.0
+          radius = radius - difference * 20%
         }
 
         #place(
