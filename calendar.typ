@@ -172,8 +172,11 @@
       ]
     ]
 
-    #let first_day_as_week_int = int(
-      monthly_days.first().display("[weekday repr:sunday]"),
+    #let first_day_as_week_int = (
+      int(
+        monthly_days.first().display("[weekday repr:sunday]"),
+      )
+        - 1
     )
 
 
@@ -183,7 +186,6 @@
         saturdays.push(index)
       }
     }
-
 
     #let total_rows = saturdays.len()
     #let start_of_last_week = saturdays.last() + 1
@@ -203,13 +205,19 @@
           last_week.rev()
             // Pad with blanks
             + (
-              (first_day_as_week_int - (last_week.len() + 1)) * (blank_cell,)
+              (first_day_as_week_int - (last_week.len())) * (blank_cell,)
             )
             + monthly_days
         )
       } else {
-        monthly_days = first_day_as_week_int * (blank_cell,) + monthly_days
+        monthly_days = (
+          (first_day_as_week_int) * (blank_cell,) + monthly_days
+        )
       }
+    } else {
+      monthly_days = (
+        (first_day_as_week_int) * (blank_cell,) + monthly_days
+      )
     }
 
     #let cell_inset = 0.8em
