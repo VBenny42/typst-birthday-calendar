@@ -180,45 +180,50 @@
     )
 
 
-    #let saturdays = ()
-    #for (index, day) in monthly_days.enumerate() {
-      if int(day.display("[weekday repr:sunday]")) == 7 {
-        saturdays.push(index)
-      }
+    // if month has 31 days, and the first day is a Friday or Saturday, then the month will have 6 weeks
+    // if month has 30 days, and the first day is a Saturday, then the month will have 6 weeks
+    // otherwise, no need to normalise
+
+    #let month_length = monthly_days.len()
+
+    #let total_rows = if (
+      // February
+      month_length == 28 and first_day_as_week_int == 0
+    ) {
+      4
+    } else if month_length == 30 and first_day_as_week_int == 6 {
+      6
+    } else if month_length == 31 and first_day_as_week_int in (5, 6) {
+      6
+    } else {
+      5
     }
 
-    #let total_rows = saturdays.len()
-    #let start_of_last_week = saturdays.last() + 1
-    #if monthly_days.len() - start_of_last_week > 0 {
-      total_rows += 1
+    // pad all months so that the first day of the month is on the correct day of the week
+    #let monthly_days = ((first_day_as_week_int) * (blank_cell,) + monthly_days)
 
-      if total_rows > 5 and normalise_to_five_weeks {
-        total_rows -= 1
+    #if total_rows > 5 and normalise_to_five_weeks {
+      total_rows = 5
 
-        let last_week = ()
+      // remove padding as there will be the 6th week cells first, then blanks
+      monthly_days = monthly_days.filter(cell => cell != blank_cell)
 
-        while monthly_days.last().day() != start_of_last_week {
-          last_week.push(monthly_days.pop())
-        }
+      // Will always have to pop at least one day once normalising
+      let last_days = (monthly_days.pop(),)
 
-        monthly_days = (
-          last_week.rev()
-            // Pad with blanks
-            + (
-              (first_day_as_week_int - (last_week.len())) * (blank_cell,)
-            )
-            + monthly_days
-        )
-      } else {
-        monthly_days = (
-          (first_day_as_week_int) * (blank_cell,) + monthly_days
-        )
+      if month_length == 31 and first_day_as_week_int == 6 {
+        last_days.push(monthly_days.pop())
       }
-    } else {
+
       monthly_days = (
-        (first_day_as_week_int) * (blank_cell,) + monthly_days
+        last_days.rev()
+          + (
+            (first_day_as_week_int - (last_days.len())) * (blank_cell,)
+          )
+          + monthly_days
       )
     }
+
 
     #let cell_inset = 0.8em
     #let event_inset = 0.2em
